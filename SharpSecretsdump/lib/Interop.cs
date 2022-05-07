@@ -72,6 +72,18 @@ namespace SharpSecretsdump
             );
 
         [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern int RegEnumValue(
+            IntPtr hKey,
+            int dwIndex,
+            StringBuilder lpValueName,
+            ref int lpcchValueName,
+            int lpReserved,
+            IntPtr lpType,
+            IntPtr lpDate,
+            IntPtr lpcbData
+            );
+
+        [DllImport("advapi32.dll", SetLastError = true)]
         public static extern int RegQueryValueEx(
             IntPtr hKey,
             string lpValueName,

