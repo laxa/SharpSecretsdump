@@ -11,12 +11,14 @@ namespace SharpSecretsdump
             if (!Helpers.IsHighIntegrity())
             {
                 Console.WriteLine("You need to be in high integrity to extract LSA secrets!");
-                Environment.Exit(0);
+                return;
             }
             else
             {
                 string currentName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
-                if (currentName == "NT AUTHORITY\\SYSTEM")
+                bool isSytem = System.Security.Principal.WindowsIdentity.GetCurrent().IsSystem;
+
+                if (isSytem)
                 {
                     alreadySystem = true;
                 }
@@ -26,8 +28,8 @@ namespace SharpSecretsdump
                     //Console.WriteLine("[*] Elevating to SYSTEM via token duplication for LSA secret retrieval");
                     if (Helpers.GetSystem() == false)
                     {
-                        Console.WriteLine("Failed to elevate");
-                        Environment.Exit(0);
+                        Console.WriteLine($"Failed to elevate: {currentName}");
+                        return;
                     }
                 }
             }
