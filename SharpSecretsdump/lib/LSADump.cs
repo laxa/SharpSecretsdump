@@ -12,6 +12,9 @@ namespace SharpSecretsdump
             string keyPath = String.Format("SECURITY\\Policy\\Secrets\\{0}\\CurrVal", secretName);
             byte[] keyData = Helpers.GetRegKeyValue(keyPath);
 
+            if (keyData == null)
+                return null;
+
             byte[] keyEncryptedData = new byte[keyData.Length - 28];
             Array.Copy(keyData, 28, keyEncryptedData, 0, keyEncryptedData.Length);
 
