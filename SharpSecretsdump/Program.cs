@@ -36,7 +36,7 @@ namespace SharpSecretsdump
 
             byte[] bootkey = LSADump.GetBootKey();
 
-            Console.WriteLine($"[*] Target system bootKey: 0x{BitConverter.ToString(bootkey).Replace("-", "").ToLower()}");
+            Console.WriteLine($"[*] Target system bootKey: 0x{Helpers.Hexlify(bootkey)}");
 
             Helpers.GetSamAccounts(bootkey);
             Helpers.GetLsaSecrets(bootkey);

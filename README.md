@@ -5,3 +5,4 @@ C# project used to mimic `secretsdump.py` from impacket but only to be run local
 Most of the code used here is coming from these 2 project:
 * https://github.com/G0ldenGunSec/SharpSecDump
 * https://github.com/GhostPack/SharpDPAPI
+* https://github.com/microsoft/WindowsProtocolTestSuites/tree/03b3906b9745be72b1852f7ec6ac28ca838029b6

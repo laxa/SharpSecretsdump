@@ -35,7 +35,7 @@ namespace SharpSecretsdump
             return plaintext;
         }
 
-        //https://rosettacode.org/wiki/MD4
+        // https://rosettacode.org/wiki/MD4
         public static byte[] Md4Hash2(this byte[] input)
         {
             // get padded uints from bytes
@@ -91,7 +91,7 @@ namespace SharpSecretsdump
             }
         }
 
-        //https://stackoverflow.com/questions/7217627/is-there-anything-wrong-with-this-rc4-encryption-code-in-c-sharp
+        // https://stackoverflow.com/questions/7217627/is-there-anything-wrong-with-this-rc4-encryption-code-in-c-sharp
         internal static byte[] RC4Encrypt(byte[] pwd, byte[] data)
         {
             int a, i, j, k, tmp;
@@ -136,7 +136,7 @@ namespace SharpSecretsdump
             aes.Key = key;
             aes.Mode = CipherMode.CBC;
             aes.IV = iv;
-            //you would think this would work to pad out the rest of the final block to 16, but it doesnt? ¯\_(ツ)_/¯
+            // you would think this would work to pad out the rest of the final block to 16, but it doesnt? ¯\_(ツ)_/¯
             aes.Padding = PaddingMode.Zeros;
 
             int tailLength = value.Length % 16;
@@ -178,7 +178,7 @@ namespace SharpSecretsdump
             return (BitConverter.ToString(plain1) + BitConverter.ToString(plain2));
         }
 
-        //method from SidToKey - https://github.com/woanware/ForensicUserInfo/blob/master/Source/SamParser.cs
+        // method from SidToKey - https://github.com/woanware/ForensicUserInfo/blob/master/Source/SamParser.cs
         private static void RidToKey(string hexRid, ref List<byte> key1, ref List<byte> key2)
         {
             int rid = Int32.Parse(hexRid, System.Globalization.NumberStyles.HexNumber);

