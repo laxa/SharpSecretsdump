@@ -277,9 +277,9 @@ namespace SharpSecretsdump
         }
 
         // Copied from secretsdump.py from impacket
-        public static void PrintMachineKerberos(byte[] secret, String domaineName, String computerName)
+        public static void PrintMachineKerberos(byte[] secret, String domainName, String computerName)
         {
-            byte[] salt = Encoding.UTF8.GetBytes($"{domaineName.ToUpper()}host{computerName.ToLower()}.{domaineName.ToLower()}");
+            byte[] salt = Encoding.UTF8.GetBytes($"{domainName.ToUpper()}host{computerName.ToLower()}.{domainName.ToLower()}");
 
             Encoding UTF16decoder = Encoding.GetEncoding(System.Text.UnicodeEncoding.Unicode.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback());
             Encoding UTF8encoder = Encoding.GetEncoding(System.Text.UnicodeEncoding.UTF8.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback());
@@ -296,7 +296,7 @@ namespace SharpSecretsdump
             foreach(EncryptionType type in kerberosEncryptions)
             {
                 byte[] key = KeyGenerator.MakeKey(type, UTF8encoder.GetString(rawSecret), UTF8encoder.GetString(salt));
-                Console.WriteLine($"{domaineName}\\{computerName}:{type.ToString().ToLower().Replace("_", "-")}:{Hexlify(key)}");
+                Console.WriteLine($"{domainName}\\{computerName}$:{type.ToString().ToLower().Replace("_", "-")}:{Hexlify(key)}");
             }
         }
 
