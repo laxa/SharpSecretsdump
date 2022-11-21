@@ -39,6 +39,7 @@ namespace SharpSecretsdump
             Console.WriteLine($"[*] Target system bootKey: 0x{Helpers.Hexlify(bootkey)}");
 
             Helpers.GetSamAccounts(bootkey);
+            Helpers.GetDefaultLogon();
             Helpers.GetLsaSecrets(bootkey);
 
             if (!alreadySystem)

