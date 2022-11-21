@@ -250,14 +250,15 @@ namespace SharpSecretsdump
                                         byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName");
                                         byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName");
                                         byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword");
+                                        string username;
                                         if (usernameArr != null)
                                         {
-                                            string username = Encoding.ASCII.GetString(usernameArr);
+                                            username = Encoding.ASCII.GetString(usernameArr);
                                             username = username.Remove(username.Length - 1);
                                         }
                                         else
                                         {
-                                            string username = "(Unkown User)";
+                                            username = "(Unkown User)";
                                         }
                                         if (domainArr != null)
                                         {
