@@ -6,3 +6,12 @@ Most of the code used here is coming from these 2 project:
 * https://github.com/G0ldenGunSec/SharpSecDump
 * https://github.com/GhostPack/SharpDPAPI
 * https://github.com/microsoft/WindowsProtocolTestSuites/tree/03b3906b9745be72b1852f7ec6ac28ca838029b6
+
+# Single file
+
+This branch is just one file to be able to use SharpSecretsdump as a single file for powershell local execution:
+
+```
+PS > Add-Type  -IgnoreWarnings -LiteralPath "C:\Users\user\Desktop\SharpSecretsdump-master\SharpSecretsdump\Program.cs"
+PS > [SSD.Program]::Main()
+```
