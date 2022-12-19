@@ -1966,9 +1966,23 @@ namespace SSD
                                     }
                                     else if (secret.ToUpper().StartsWith("_SC_"))
                                     {
-                                        string startName = Encoding.ASCII.GetString(GetRegKeyValue(String.Format("SYSTEM\\ControlSet001\\Services\\{0}", secret.Substring(4)), "ObjectName")).Trim('\0');
-                                        string pw = Encoding.Unicode.GetString(secretBlob.secret);
-                                        Console.WriteLine(String.Format("{0}:{1}", startName, pw));
+                                        var startName = GetRegKeyValue($"SYSTEM\\ControlSet001\\Services\\{secret.Substring(4)}", "ObjectName");
+                                        // smsa account seems to have no value in services
+                                        if (startName != null)
+                                        {
+                                            secret = Encoding.ASCII.GetString(startName).Trim('\0');
+                                        }
+                                        string pw;
+                                        try
+                                        {
+                                            Encoding encod = Encoding.GetEncoding(UnicodeEncoding.Unicode.CodePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+                                            pw = encod.GetString(secretBlob.secret);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            pw = Hexlify(secretBlob.secret);
+                                        }
+                                        Console.WriteLine($"{secret}:{pw}");
                                     }
                                     else if (secret.ToUpper().StartsWith("ASPNET_WP_PASSWORD"))
                                     {
