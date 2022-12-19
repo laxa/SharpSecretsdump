@@ -267,7 +267,7 @@ namespace SharpSecretsdump
                                     }
                                     else if (secret.ToUpper().StartsWith("_SC_"))
                                     {
-                                        var startName = GetRegKeyValue($"SYSTEM\\ControlSet001\\Services\\{secret.Substring(4)}", "ObjectName");
+                                        var startName = GetRegKeyValue($"SYSTEM\\ControlSet001\\Services\\{secret.Substring(4)}", "ObjectName", true);
                                         // smsa account seems to have no value in services
                                         if (startName != null)
                                         {
@@ -524,7 +524,10 @@ namespace SharpSecretsdump
             if (result != 0)
             {
                 string errorMessage = new Win32Exception((int)result).Message;
-                Console.WriteLine("Error opening {0} ({1}) : {2}", keyPath, result, errorMessage);
+                if (!silent)
+                {
+                    Console.WriteLine("Error opening {0} ({1}) : {2}", keyPath, result, errorMessage);
+                }
                 return null;
             }
 
