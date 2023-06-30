@@ -6,3 +6,12 @@ Most of the code used here is coming from these 2 project:
 * https://github.com/G0ldenGunSec/SharpSecDump
 * https://github.com/GhostPack/SharpDPAPI
 * https://github.com/microsoft/WindowsProtocolTestSuites/tree/03b3906b9745be72b1852f7ec6ac28ca838029b6
+
+## Use
+
+SharpSecretsdump can be ran directly without any argument.
+It also can be ran by providing the `bootKey` as the first argument such as:
+
+```
+> sharp.exe bootkey
+```

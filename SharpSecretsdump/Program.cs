@@ -34,7 +34,15 @@ namespace SharpSecretsdump
                 }
             }
 
-            byte[] bootkey = LSADump.GetBootKey();
+            byte[] bootkey = null;
+            if (args.Length == 1)
+            {
+                bootkey = Helpers.StringToByteArray(args[0].Replace("0x", ""));
+            }
+            else
+            {
+                bootkey = LSADump.GetBootKey();
+            }
 
             Console.WriteLine($"[*] Target system bootKey: 0x{Helpers.Hexlify(bootkey)}");
 
