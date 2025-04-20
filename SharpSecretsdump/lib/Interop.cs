@@ -6,34 +6,34 @@ namespace SharpSecretsdump
 {
     public class Interop
     {
-        // for GetSystem()
-        [DllImport("advapi32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool OpenProcessToken(
-            IntPtr ProcessHandle,
-            UInt32 DesiredAccess,
-            out IntPtr TokenHandle);
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct LUID
+        {
+            public uint LowPart;
+            public int HighPart;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct TOKEN_PRIVILEGES
+        {
+            public uint PrivilegeCount;
+            public LUID Luid;
+            public uint Attributes;
+        }
 
         [DllImport("advapi32.dll", SetLastError = true)]
-        public static extern bool DuplicateToken(
-            IntPtr ExistingTokenHandle,
-            int SECURITY_IMPERSONATION_LEVEL,
-            ref IntPtr DuplicateTokenHandle);
+        public static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool LookupPrivilegeValue(string lpSystemName, string lpName, out LUID lpLuid);
 
         [DllImport("advapi32.dll", SetLastError = true)]
-        public static extern bool ImpersonateLoggedOnUser(
-            IntPtr hToken);
+        public static extern bool AdjustTokenPrivileges(IntPtr TokenHandle, bool DisableAllPrivileges,
+            ref TOKEN_PRIVILEGES NewState, int BufferLength, IntPtr PreviousState, IntPtr ReturnLength);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-                public static extern bool CloseHandle(
-            IntPtr hObject
-        );
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GetCurrentProcess();
 
-        [DllImport("advapi32.dll", SetLastError = true)]
-        public static extern bool RevertToSelf();
-
-        // for LSA Secrets Dump
         [DllImport("advapi32.dll", CharSet = CharSet.Auto)]
         public static extern int RegOpenKeyEx(
             uint hKey,
@@ -41,6 +41,19 @@ namespace SharpSecretsdump
             int ulOptions,
             int samDesired,
             ref IntPtr hkResult
+        );
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Auto)]
+        public static extern int RegCreateKeyEx(
+            uint hKey,
+            string subKey,
+            int reserved,
+            string lpClass,
+            int dwOptions,
+            int samDesired,
+            IntPtr lpSecurityAttributes,
+            ref IntPtr hkResult,
+            ref IntPtr lpdwDisposition
         );
 
         [DllImport("advapi32.dll")]

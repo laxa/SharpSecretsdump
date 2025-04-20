@@ -73,7 +73,7 @@ namespace SharpSecretsdump
 
                 // open the specified key with read (0x19) privileges
                 //  0x80000002 == HKLM
-                result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+                result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, Helpers.KEY_READ, ref hKey);
                 if (result != 0)
                 {
                     int error = Marshal.GetLastWin32Error();

